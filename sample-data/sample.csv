@@ -1,0 +1,6 @@
+order_id,customer,product,quantity,price,city
+1001,Rahul Kumar,Laptop,1,55000.00,Bengaluru
+1002,Priya Sharma,Headphones,2,1999.50,Pune
+1003,Arjun Das,"Monitor, 27 inch",1,18500.00,"Kolkata, WB"
+1004,Ananya Iyer,Keyboard,3,1250.00,Chennai
+1005,Vikram Singh,USB-C Hub,1,2499.00,New Delhi
