@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0" # v5 supports Terraform >= 0.13 and current Lambda runtimes; v6 needs Terraform 1.x
+      version = "~> 5.0" # v5 supports Terraform >= 0.13; v6 needs Terraform 1.x
     }
     archive = {
       source  = "hashicorp/archive"

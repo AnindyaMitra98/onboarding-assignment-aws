@@ -15,9 +15,9 @@ S3 (input/*.csv) ──► read-lambda ──► SNS ──► SQS ──► wri
 |------|---------|-------|
 | Terraform | 0.13.7 | pinned in `versions.tf` and `terragrunt.hcl` |
 | Terragrunt | 0.29.2 | pinned in `terragrunt.hcl` |
-| AWS provider | ~> 5.0 | v5 supports Terraform 0.13; v3/v4 cannot create `python3.12` Lambdas |
+| AWS provider | ~> 5.0 | supports Terraform 0.13 (v6 needs Terraform 1.x) |
 | Archive provider | ~> 2.2.0 | |
-| Python (Lambda runtime) | 3.12 | |
+| Python (Lambda runtime) | 3.9 | `python3.9`; code avoids 3.10+ syntax |
 
 Terraform 0.13 has no `.terraform.lock.hcl`, so provider versions are held by the constraints above.
 
@@ -78,6 +78,6 @@ Logs are in CloudWatch under `/aws/lambda/<name>-read-lambda` and `/aws/lambda/<
 ## Tests
 
 ```sh
-pip install pytest
+pip install pytest            # Python 3.9, matching the Lambda runtime
 python -m pytest lambdas/tests
 ```
