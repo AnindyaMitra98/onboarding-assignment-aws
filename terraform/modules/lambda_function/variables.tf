@@ -58,7 +58,7 @@ variable "sqs_event_source" {
   description = "Optional SQS queue that triggers the function. Grants the needed SQS permissions automatically."
   type = object({
     queue_arn  = string
-    batch_size = optional(number, 10)
+    batch_size = number
   })
   default = null
 }

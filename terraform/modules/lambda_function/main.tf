@@ -25,14 +25,6 @@ locals {
     Resource = ["${aws_cloudwatch_log_group.this.arn}:*"]
   }
 
-  # Permissions the Lambda service needs to poll the queue on the function's behalf.
-  sqs_statements = var.sqs_event_source == null ? [] : [{
-    Sid      = "ConsumeQueue"
-    Effect   = "Allow"
-    Action   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
-    Resource = [var.sqs_event_source.queue_arn]
-  }]
-
   extra_statements = [for s in var.policy_statements : {
     Sid      = s.sid
     Effect   = "Allow"
@@ -47,7 +39,25 @@ resource "aws_iam_role_policy" "this" {
 
   policy = jsonencode({
     Version   = "2012-10-17"
-    Statement = concat([local.logging_statement], local.sqs_statements, local.extra_statements)
+    Statement = concat([local.logging_statement], local.extra_statements)
+  })
+}
+
+# Permissions the Lambda service needs to poll the queue on the function's behalf.
+resource "aws_iam_role_policy" "sqs" {
+  count = var.sqs_event_source == null ? 0 : 1
+
+  name = "${var.function_name}-sqs-policy"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ConsumeQueue"
+      Effect   = "Allow"
+      Action   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+      Resource = [var.sqs_event_source.queue_arn]
+    }]
   })
 }
 
@@ -82,5 +92,5 @@ resource "aws_lambda_event_source_mapping" "sqs" {
   batch_size              = var.sqs_event_source.batch_size
   function_response_types = ["ReportBatchItemFailures"]
 
-  depends_on = [aws_iam_role_policy.this]
+  depends_on = [aws_iam_role_policy.sqs]
 }

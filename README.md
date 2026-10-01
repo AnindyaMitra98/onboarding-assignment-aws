@@ -9,6 +9,18 @@ S3 (input/*.csv) ──► read-lambda ──► SNS ──► SQS ──► wri
                                               └─► DLQ (after 3 failed receives)
 ```
 
+## Tool versions
+
+| Tool | Version | Notes |
+|------|---------|-------|
+| Terraform | 0.13.7 | pinned in `versions.tf` and `terragrunt.hcl` |
+| Terragrunt | 0.29.2 | pinned in `terragrunt.hcl` |
+| AWS provider | ~> 5.0 | v5 supports Terraform 0.13; v3/v4 cannot create `python3.12` Lambdas |
+| Archive provider | ~> 2.2.0 | |
+| Python (Lambda runtime) | 3.12 | |
+
+Terraform 0.13 has no `.terraform.lock.hcl`, so provider versions are held by the constraints above.
+
 ## Layout
 
 ```
@@ -17,8 +29,9 @@ lambdas/
   write_lambda/handler.py    # SQS trigger → PutObject per event (partial batch failures)
   tests/                     # pytest unit tests (boto3 mocked)
 terraform/
+  terragrunt.hcl             # version pins, local backend (generates backend.tf), inputs
   main.tf                    # root module: module callouts only
-  variables.tf / terraform.tfvars
+  variables.tf
   modules/
     s3_bucket/               # bucket, public-access block, SSE
     sns_topic/
@@ -32,7 +45,7 @@ sample-data/people.csv
 ## Conventions
 
 - **Naming:** every resource is named `NAME_PREFIX-onboarding-FIRST_INITIALLAST_NAME-<resource>`,
-  e.g. `aw1dd-onboarding-rkumar-s3-bucket`. Set `name_prefix` and `owner` in `terraform/terraform.tfvars`.
+  e.g. `aw1dd-onboarding-rkumar-s3-bucket`. Set `name_prefix` and `owner` in the `inputs` block of `terraform/terragrunt.hcl`.
 - **Tags:** `Project = Onboarding` is applied to all resources through the provider's `default_tags`.
 - **Configuration:** the bucket name, SNS topic ARN and output prefix reach the Lambdas through environment variables.
 - **No trigger loop:** read-lambda only fires for `input/*.csv`; write-lambda only writes under `output/`.
@@ -42,11 +55,12 @@ sample-data/people.csv
 
 ```sh
 cd terraform
-terraform init
-terraform plan
-terraform apply
+terragrunt init
+terragrunt plan
+terragrunt apply
 ```
 
+Terragrunt generates `backend.tf` with a `local` backend pointing at `state/terraform.tfstate`.
 After `apply`, commit `terraform/state/terraform.tfstate` so the state stays in the repository.
 
 ## Try it

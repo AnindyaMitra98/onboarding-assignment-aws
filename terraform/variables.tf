@@ -4,7 +4,7 @@ variable "name_prefix" {
 
   validation {
     condition     = can(regex("^[a-z0-9-]+$", var.name_prefix))
-    error_message = "name_prefix must be lowercase letters, digits or hyphens (it is used in the S3 bucket name)."
+    error_message = "The name_prefix value must be lowercase letters, digits or hyphens (it is used in the S3 bucket name)."
   }
 }
 
@@ -14,7 +14,7 @@ variable "owner" {
 
   validation {
     condition     = can(regex("^[a-z0-9]+$", var.owner))
-    error_message = "owner must be lowercase letters or digits only."
+    error_message = "The owner value must be lowercase letters or digits only."
   }
 }
 
