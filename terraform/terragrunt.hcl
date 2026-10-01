@@ -20,7 +20,7 @@ inputs = {
   name_prefix = "aw1dd"
 
   # First initial + last name, lowercase (e.g. Rahul Kumar -> "rkumar").
-  owner = "pmitra"
+  owner = "amitra"
 
   aws_region = "us-east-1"
 }
