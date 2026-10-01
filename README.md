@@ -3,6 +3,8 @@
 Project 1 (standalone): a CSV file uploaded to S3 is split into one JSON event per line,
 fanned out through SNS → SQS, and each event is written back to the same bucket as its own file.
 
+New to the project? Read **[PROJECT_GUIDE.md](PROJECT_GUIDE.md)** for a beginner-friendly walkthrough of all the code.
+
 ```
 S3 (input/*.csv) ──► read-lambda ──► SNS ──► SQS ──► write-lambda ──► S3 (output/<file>/<line>.json)
                                               │
