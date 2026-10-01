@@ -1,0 +1,19 @@
+terraform {
+  required_version = ">= 1.5"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
+  }
+
+  # State is stored in the repository, as the assignment requires.
+  backend "local" {
+    path = "state/terraform.tfstate"
+  }
+}
