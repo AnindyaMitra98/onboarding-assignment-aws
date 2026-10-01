@@ -67,10 +67,10 @@ After `apply`, commit `terraform/state/terraform.tfstate` so the state stays in 
 
 ```sh
 BUCKET=$(terraform -chdir=terraform output -raw bucket_name)
-aws s3 cp sample-data/people.csv s3://$BUCKET/input/people.csv
-aws s3 ls s3://$BUCKET/output/people/
-#   000002.json  000003.json  000004.json   (CSV line numbers; line 1 is the header)
-aws s3 cp s3://$BUCKET/output/people/000002.json -
+aws s3 cp sample-data/sample.csv s3://$BUCKET/input/sample.csv
+aws s3 ls s3://$BUCKET/output/sample/
+#   000002.json ... 000006.json   (CSV line numbers; line 1 is the header)
+aws s3 cp s3://$BUCKET/output/sample/000002.json -
 ```
 
 Logs are in CloudWatch under `/aws/lambda/<name>-read-lambda` and `/aws/lambda/<name>-write-lambda`.
