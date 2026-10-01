@@ -66,7 +66,7 @@ After `apply`, commit `terraform/state/terraform.tfstate` so the state stays in 
 ## Try it
 
 ```sh
-BUCKET=$(terraform -chdir=terraform output -raw bucket_name)
+BUCKET=$(cd terraform && terragrunt output bucket_name)   # 0.13 prints strings unquoted
 aws s3 cp sample-data/sample.csv s3://$BUCKET/input/sample.csv
 aws s3 ls s3://$BUCKET/output/sample/
 #   000002.json ... 000006.json   (CSV line numbers; line 1 is the header)
