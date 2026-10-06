@@ -13,37 +13,37 @@ S3 input/*.csv → read-lambda → SNS → SQS (+DLQ) → write-lambda → S3 ou
 Assignment rules that constrain any change:
 - Root module (`terraform/main.tf`) contains **only module callouts** (plus the `local.name` naming local). Every resource lives in `terraform/modules/*`.
 - Both Lambdas use the **one shared** `modules/lambda_function` module.
-- Names: `<name_prefix>-onboarding-<owner>-<resource>` → `aw1dd-onboarding-amitra-*`. `name_prefix`/`owner` are set in the `inputs` block of `terraform/terragrunt.hcl`.
+- Names: `<name_prefix>-onboarding-<owner>-<resource>` → `aw1dd-onboarding-amitra-*`. `name_prefix`/`owner` are set in `terraform/terraform.tfvars`.
 - Every resource is tagged `Project = Onboarding` — done once via provider `default_tags` in `providers.tf`, not per resource.
 - Terraform state is committed to the repo (`terraform/state/terraform.tfstate`). Commit it after every apply.
 - Work on a branch off `master`; deliver via PR.
 
 ## Pinned versions (required by the assignment)
 
-- **Terraform 0.13.7**, **Terragrunt 0.29.2** — both enforced in `terragrunt.hcl`; `versions.tf` also pins Terraform.
+- **Terraform 0.13.7** — enforced by `required_version` in `versions.tf`. Plain Terraform, no Terragrunt.
 - **Python 3.9** Lambda runtime (default in `modules/lambda_function/variables.tf`); code must stay 3.9-compatible (no `match`, no `X | Y` types, etc.).
 - AWS provider `~> 5.0` (v5 still supports TF 0.13; v6 needs TF 1.x). Archive provider `~> 2.2.0`.
 
-The system `terraform` on this machine is 1.x, so put a 0.13.7 `terraform` binary and `terragrunt` 0.29.2 first on `PATH` before running Terragrunt, or the version constraint will fail.
+The system `terraform` on this machine is 1.x, so put a 0.13.7 `terraform` binary first on `PATH`, or the version constraint will fail.
 
 Terraform 0.13 gotchas already hit in this repo:
 - No `optional()` in object types — callers must pass every attribute (e.g. `sqs_event_source = { queue_arn, batch_size }`).
 - Avoid `cond ? [] : [ {...} ]` (inconsistent tuple types); use a `count`-ed resource instead (see `aws_iam_role_policy.sqs`).
 - Validation `error_message` must start with a capital letter and end with `.`.
-- No `.terraform.lock.hcl`, no `-chdir`, no `output -raw` (plain `terragrunt output <name>` prints strings unquoted).
+- No `.terraform.lock.hcl`, no `-chdir`, no `output -raw` (plain `terraform output <name>` prints strings unquoted).
 - `plan -refresh=false` defers `archive_file` data sources; run a normal plan to see real `source_code_hash`.
 
 ## Commands
 
-All Terraform commands run from `terraform/` via Terragrunt (it generates the git-ignored `backend.tf` with a local backend at `state/terraform.tfstate`):
+All Terraform commands run from `terraform/`. Variable values come from `terraform.tfvars` (auto-loaded); `backend.tf` is a local backend at `state/terraform.tfstate`:
 
 ```sh
 cd terraform
 terraform fmt -recursive -check
-terragrunt init
-terragrunt validate
-terragrunt plan -out=x.tfplan     # review, then:
-terragrunt apply x.tfplan         # apply the reviewed plan, not -auto-approve
+terraform init
+terraform validate
+terraform plan -out=x.tfplan      # review, then:
+terraform apply x.tfplan          # apply the reviewed plan, not -auto-approve
 ```
 
 Lambda unit tests (boto3 is stubbed in `lambdas/tests/conftest.py`, so only pytest is needed):

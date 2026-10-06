@@ -3,6 +3,8 @@
 Project 1 (standalone): a CSV file uploaded to S3 is split into one JSON event per line,
 fanned out through SNS → SQS, and each event is written back to the same bucket as its own file.
 
+New to the project? Read **[PROJECT_GUIDE.md](PROJECT_GUIDE.md)** for a beginner-friendly walkthrough of all the code.
+
 ```
 S3 (input/*.csv) ──► read-lambda ──► SNS ──► SQS ──► write-lambda ──► S3 (output/<file>/<line>.json)
                                               │
@@ -13,8 +15,7 @@ S3 (input/*.csv) ──► read-lambda ──► SNS ──► SQS ──► wri
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| Terraform | 0.13.7 | pinned in `versions.tf` and `terragrunt.hcl` |
-| Terragrunt | 0.29.2 | pinned in `terragrunt.hcl` |
+| Terraform | 0.13.7 | pinned in `versions.tf` |
 | AWS provider | ~> 5.0 | supports Terraform 0.13 (v6 needs Terraform 1.x) |
 | Archive provider | ~> 2.2.0 | |
 | Python (Lambda runtime) | 3.9 | `python3.9`; code avoids 3.10+ syntax |
@@ -29,7 +30,8 @@ lambdas/
   write_lambda/handler.py    # SQS trigger → PutObject per event (partial batch failures)
   tests/                     # pytest unit tests (boto3 mocked)
 terraform/
-  terragrunt.hcl             # version pins, local backend (generates backend.tf), inputs
+  terraform.tfvars           # variable values (name_prefix, owner, aws_region)
+  backend.tf                 # local backend -> state/terraform.tfstate
   main.tf                    # root module: module callouts only
   variables.tf
   modules/
@@ -45,7 +47,7 @@ sample-data/people.csv
 ## Conventions
 
 - **Naming:** every resource is named `NAME_PREFIX-onboarding-FIRST_INITIALLAST_NAME-<resource>`,
-  e.g. `aw1dd-onboarding-rkumar-s3-bucket`. Set `name_prefix` and `owner` in the `inputs` block of `terraform/terragrunt.hcl`.
+  e.g. `aw1dd-onboarding-rkumar-s3-bucket`. Set `name_prefix` and `owner` in `terraform/terraform.tfvars`.
 - **Tags:** `Project = Onboarding` is applied to all resources through the provider's `default_tags`.
 - **Configuration:** the bucket name, SNS topic ARN and output prefix reach the Lambdas through environment variables.
 - **No trigger loop:** read-lambda only fires for `input/*.csv`; write-lambda only writes under `output/`.
@@ -55,18 +57,18 @@ sample-data/people.csv
 
 ```sh
 cd terraform
-terragrunt init
-terragrunt plan
-terragrunt apply
+terraform init
+terraform plan -out=x.tfplan
+terraform apply x.tfplan
 ```
 
-Terragrunt generates `backend.tf` with a `local` backend pointing at `state/terraform.tfstate`.
+Variable values are read automatically from `terraform.tfvars`; `backend.tf` keeps state in `state/terraform.tfstate`.
 After `apply`, commit `terraform/state/terraform.tfstate` so the state stays in the repository.
 
 ## Try it
 
 ```sh
-BUCKET=$(cd terraform && terragrunt output bucket_name)   # 0.13 prints strings unquoted
+BUCKET=$(cd terraform && terraform output bucket_name)   # 0.13 prints strings unquoted
 aws s3 cp sample-data/sample.csv s3://$BUCKET/input/sample.csv
 aws s3 ls s3://$BUCKET/output/sample/
 #   000002.json ... 000006.json   (CSV line numbers; line 1 is the header)
