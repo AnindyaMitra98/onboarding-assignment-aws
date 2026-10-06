@@ -75,7 +75,6 @@ The file name is the **line number in the CSV** (line 1 is the header row, so th
 | Tool | What it is |
 |---|---|
 | **Terraform** (v0.13.7) | *Infrastructure as Code*: you describe the AWS resources you want in `.tf` files, and Terraform creates, updates or deletes them to match. |
-| **Terragrunt** (v0.29.2) | A thin wrapper around Terraform. It supplies variable values and backend settings, then runs Terraform for you. |
 | **Python** (3.9) | The language both Lambdas are written in. |
 | **boto3** | The AWS library for Python. Lambda includes it automatically, so we do not package it. |
 | **pytest** | The Python testing tool used for the unit tests. |
@@ -117,7 +116,8 @@ The file name is the **line number in the CSV** (line 1 is the header row, so th
 │   └── people.csv
 │
 └── terraform/                    ← the infrastructure code
-    ├── terragrunt.hcl            ← variable values + versions + where state is stored
+    ├── terraform.tfvars          ← variable values (name prefix, owner, region)
+    ├── backend.tf                ← where state is stored
     ├── versions.tf               ← required Terraform and provider versions
     ├── providers.tf              ← AWS region + the Project=Onboarding tag
     ├── variables.tf              ← inputs the root module accepts
@@ -165,33 +165,27 @@ Both Lambdas log each step to CloudWatch, so you can follow the whole journey in
 
 ## 5. The Terraform code, file by file
 
-### 5.1 `terraform/terragrunt.hcl`: the control panel
+### 5.1 `terraform/terraform.tfvars` and `terraform/backend.tf`: the control panel
 
-This is the file you edit to change settings. Terragrunt reads it every time you run `terragrunt ...`.
+`terraform.tfvars` is the file you edit to change settings:
 
 ```hcl
-terraform_version_constraint  = "= 0.13.7"
-terragrunt_version_constraint = "= 0.29.2"
+name_prefix = "aw1dd"
+owner       = "amitra"
+aws_region  = "us-east-1"
 ```
-Stops with an error if someone runs the wrong Terraform or Terragrunt version, so the whole team uses the same tools.
+These are the **values** of the variables declared in `variables.tf`. Terraform loads a file named exactly `terraform.tfvars` automatically on every `plan` / `apply`, so no extra flags are needed. See [section 6](#6-how-values-travel-through-terraform).
+
+`backend.tf` says where the state is stored:
 
 ```hcl
-remote_state {
-  backend = "local"
-  generate = { path = "backend.tf", if_exists = "overwrite_terragrunt" }
-  config   = { path = "state/terraform.tfstate" }
+terraform {
+  backend "local" {
+    path = "state/terraform.tfstate"
+  }
 }
 ```
-Tells Terragrunt to **generate** a file called `backend.tf` that says "store state locally in `state/terraform.tfstate`". The assignment requires the state to live in the repository, so after every `apply` the state file is committed to git. (`backend.tf` itself is generated on each run, so it is listed in `.gitignore`.)
-
-```hcl
-inputs = {
-  name_prefix = "aw1dd"
-  owner       = "amitra"
-  aws_region  = "us-east-1"
-}
-```
-The **values** of the variables. Terragrunt passes each one to Terraform as an environment variable (`TF_VAR_owner=amitra`), which Terraform picks up automatically. See [section 6](#6-how-values-travel-through-terraform).
+The assignment requires the state to live in the repository, so after every `apply` the state file is committed to git.
 
 ### 5.2 `terraform/versions.tf`: required versions
 
@@ -269,7 +263,7 @@ Creates three resources:
 
 | Resource | Purpose |
 |---|---|
-| `aws_s3_bucket` | The bucket. `force_destroy = true` lets `terragrunt destroy` delete it even when it still contains files. |
+| `aws_s3_bucket` | The bucket. `force_destroy = true` lets `terraform destroy` delete it even when it still contains files. |
 | `aws_s3_bucket_public_access_block` | Blocks every form of public access, so files can never be exposed to the internet by mistake. |
 | `aws_s3_bucket_server_side_encryption_configuration` | Encrypts every file at rest with AES-256. |
 
@@ -329,7 +323,7 @@ This lives in its own module because it needs **both** the bucket and the Lambda
 
 ### 5.11 `terraform/outputs.tf`
 
-Prints useful values after `apply` (bucket name, topic ARN, queue URL, DLQ ARN, Lambda names). You can read them again any time with `terragrunt output <name>`.
+Prints useful values after `apply` (bucket name, topic ARN, queue URL, DLQ ARN, Lambda names). You can read them again any time with `terraform output <name>`.
 
 ---
 
@@ -338,8 +332,8 @@ Prints useful values after `apply` (bucket name, topic ARN, queue URL, DLQ ARN, 
 Using the value `amitra` as an example:
 
 ```
-terragrunt.hcl          inputs = { owner = "amitra" }
-      │  Terragrunt sets the environment variable TF_VAR_owner=amitra
+terraform.tfvars        owner = "amitra"
+      │  Terraform loads terraform.tfvars automatically
       ▼
 variables.tf            variable "owner" { ... }          ← declared and validated
       │
@@ -507,16 +501,16 @@ python -m pytest lambdas/tests/test_read_lambda.py::test_publishes_in_batches_of
 
 ### Prerequisites
 
-- Terraform **0.13.7** and Terragrunt **0.29.2** on your `PATH` (the version check in `terragrunt.hcl` refuses other versions).
+- Terraform **0.13.7** on your `PATH` (`required_version` in `versions.tf` refuses other versions).
 - AWS CLI configured with credentials (`aws sts get-caller-identity` should print your account).
 
 ### Deploy
 
 ```sh
 cd terraform
-terragrunt init                    # downloads providers, sets up the backend
-terragrunt plan -out=x.tfplan      # shows what will be created; read it!
-terragrunt apply x.tfplan          # creates exactly what the plan showed
+terraform init                     # downloads providers, sets up the backend
+terraform plan -out=x.tfplan       # shows what will be created; read it!
+terraform apply x.tfplan           # creates exactly what the plan showed
 git add state/terraform.tfstate && git commit -m "Update state"
 ```
 Saving the plan to a file and applying *that file* guarantees that what you reviewed is exactly what gets applied.
@@ -534,14 +528,14 @@ To see the logs, open CloudWatch → Log groups → `/aws/lambda/aw1dd-onboardin
 ### Change something
 
 - **Python code:** edit `lambdas/.../handler.py`, run the tests, then `plan` / `apply`. Terraform notices the new code through `source_code_hash`.
-- **Names:** edit `owner` or `name_prefix` in `terragrunt.hcl`. AWS cannot rename these resources, so Terraform deletes and recreates them all.
+- **Names:** edit `owner` or `name_prefix` in `terraform.tfvars`. AWS cannot rename these resources, so Terraform deletes and recreates them all.
 
 ### Tear down
 
 ```sh
 cd terraform
-terragrunt plan -destroy -out=destroy.tfplan
-terragrunt apply destroy.tfplan
+terraform plan -destroy -out=destroy.tfplan
+terraform apply destroy.tfplan
 git add state/terraform.tfstate && git commit -m "Destroy infrastructure"
 ```
 
@@ -563,11 +557,8 @@ read-lambda streams the file and publishes 10 lines per API call, so memory stay
 2. The CloudWatch logs of write-lambda: look for `[ERROR]` lines.
 3. The DLQ (`aw1dd-onboarding-amitra-sqs-queue-dlq`): failed messages wait there for up to 14 days.
 
-**Why Terragrunt if we only have one environment?**
-It enforces the exact Terraform version, generates the backend configuration, and keeps all the values in one file. With more environments (dev/test/prod), each would get its own small `terragrunt.hcl`.
-
-**Why is `backend.tf` missing from git?**
-Terragrunt regenerates it from `terragrunt.hcl` on every run, so `terragrunt.hcl` is the real source of truth. Always use `terragrunt`, not plain `terraform`, in this project.
+**Where do the variable values come from?**
+From `terraform/terraform.tfvars`, which Terraform loads automatically. With more environments (dev/test/prod), each would get its own file (e.g. `prod.tfvars`) passed with `-var-file=prod.tfvars`.
 
 **Why AWS provider v5 with an old Terraform (0.13.7)?**
 v5 is the newest provider version that still supports Terraform 0.13. Older providers (v3) can't use the newer S3 resources used here.
