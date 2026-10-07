@@ -236,7 +236,25 @@ aws s3 ls s3://YOUR-BUCKET/output/my-file/
 
 > Only files ending in `.csv` and placed under `input/` are processed. Files anywhere else in the bucket are ignored.
 
-You can also do all of this in the AWS web console: open **S3** → your bucket → create an `input` folder → **Upload** the CSV → then open the `output` folder.
+### Option: upload through the AWS web console instead
+
+If you prefer clicking to typing commands, you can upload the CSV in the browser. It works exactly the same way.
+
+1. Sign in to https://console.aws.amazon.com/ and make sure the region (top-right) is the one from Step 5 (default **N. Virginia / us-east-1**).
+2. Search for **S3** in the top search bar and open it.
+3. Click your bucket (the `bucket_name` from Step 6, e.g. `aw1dd-onboarding-rkumar-s3-bucket`).
+4. If there is no `input/` folder yet: click **Create folder**, type exactly `input`, and click **Create folder**.
+5. Click the `input/` folder to open it.
+6. Click **Upload** → **Add files** → pick your CSV file → click **Upload** at the bottom.
+7. Wait about 10–20 seconds, then go back to the bucket (click the bucket name in the breadcrumb at the top).
+8. Open `output/` → `<your file name without .csv>/`. You will see one `.json` file per data row.
+9. To view a file: click it → **Open** (or **Download**).
+
+The upload is only processed when:
+
+- the file is **inside the `input/` folder** (not the bucket root or another folder),
+- the folder name is **exactly `input`** (not `Input` or `inputs`),
+- the file name ends in **lowercase `.csv`** – rename `data.CSV` to `data.csv` before uploading.
 
 ---
 
@@ -277,7 +295,7 @@ Check the plan summary says `0 to add, 0 to change, ... to destroy` before apply
 | `BucketAlreadyExists` | The bucket name is taken. Change `owner` in `terraform/terraform.tfvars` ([Step 5](#step-5--set-your-own-names)), then rerun Step 6.3 and 6.4. |
 | `AccessDenied` during apply | Your AWS user lacks permissions to create S3/SNS/SQS/Lambda/IAM/Logs resources. Ask your AWS administrator. |
 | `Saved plan is stale` | Something changed after you ran `plan`. Run `terraform plan -out=x.tfplan` again, then `terraform apply x.tfplan`. |
-| No files appear in `output/` | Check the file was uploaded to `input/` and ends in `.csv`. Then check the Lambda logs: AWS console → **CloudWatch** → **Log groups** → `/aws/lambda/<name>-read-lambda` and `/aws/lambda/<name>-write-lambda`. |
+| No files appear in `output/` | Check the file was uploaded to `input/` and ends in lowercase `.csv`. Then check the Lambda logs: AWS console → **CloudWatch** → **Log groups** → `/aws/lambda/<name>-read-lambda` and `/aws/lambda/<name>-write-lambda`. |
 | Some rows are missing in `output/` | Rows that failed 3 times are moved to the dead-letter queue. AWS console → **SQS** → queue ending in `-dlq` → **Send and receive messages** → **Poll for messages** to see them. |
 
 ---
